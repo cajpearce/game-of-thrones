@@ -10,13 +10,14 @@ max_x_margin = 192
 game_board_image = pygame.image.load("../data/GOTv2.0.jpg")
 
 # Load the image
-move_tokens = pygame.image.load("../data/Order Tokens.png")
+master_move_tokens_image = pygame.image.load("../data/Order Tokens.png")
+master_move_tokens_image = pygame.transform.rotozoom(master_move_tokens_image,0,0.8)
 
-width, height = move_tokens.get_width() / 5, move_tokens.get_height()
+width, height = master_move_tokens_image.get_width() / 5, master_move_tokens_image.get_height()
 
-tokens = [(i*width, 0, width, height) for i in range(0,5)]
-
-
+tokens = []
+for i in range(5):
+    tokens.append(master_move_tokens_image.subsurface(pygame.Rect((i * width, 0, width, height))))
 
 placed_tokens = []
 
@@ -33,7 +34,7 @@ CameraY = 0
 held = False
 start_coordinates = None
 
-
+print(og_background)
 def holding():
     global CameraX,CameraY,start_coordinates
     coordinates = pygame.mouse.get_pos()
@@ -138,7 +139,9 @@ while GAME_RUNNING:
         # pygame.draw.rect(screen, (255, 0, 255), (new_pos[0] - 40*TRANSFORM_AMOUNT, new_pos[1] - 40*TRANSFORM_AMOUNT, 80*TRANSFORM_AMOUNT, 80*TRANSFORM_AMOUNT))
 
         # Blit second half
-        screen.blit(move_tokens, new_pos, tokens[i % 5])
+        token = tokens[i % len(tokens)]
+        screen.blit(pygame.transform.rotozoom(token,0,TRANSFORM_AMOUNT), (new_pos[0] - TRANSFORM_AMOUNT*token.get_width()/2,
+                                                                          new_pos[1] - TRANSFORM_AMOUNT*token.get_height()/2))
 
 
     # refresh screen
