@@ -17,6 +17,11 @@ class Point:
     def __len__(self):
         return int(sqrt(self.x**2 + self.y**2))
     # get back values in original tuple format
+    def mul(self,other):
+        return Point((self.x*other.x,self.y*other.y))
+
+    def div(self,other):
+        return Point((self.x/other.x,self.y/other.y))
     def get(self, neg = False):
         if neg:
             return (- self.x, - self.y)

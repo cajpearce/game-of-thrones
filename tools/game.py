@@ -13,30 +13,61 @@ helpers.loading_screen(screen)
 
 
 #<editor-fold desc="CONSTANTS">
-TRANSFORMS = (0.5,0.64,0.8,
-              1.0, 1.25)
+TRANSFORM_AMOUNTS = (0.5, 0.64, 0.8,
+                     1.0, 1.25)
 
-MAX_TRANSFORM_AMOUNT = len(TRANSFORMS) - 1
+MAX_TRANSFORM_AMOUNT = len(TRANSFORM_AMOUNTS) - 1
 MIN_TRANSFORM_AMOUNT = 0
 TOKEN_SIZE = 0.5
 
-def MAX_X_MARGIN():
-    return screen.get_width() / 10
-
-def MAX_Y_MARGIN():
-    return (MAX_X_MARGIN() + screen.get_height()/10) / 2
 
 OG_BACKGROUND = pygame.image.load("../data/low_detail.jpg")
 
 # will take a while ...
-BACKGROUND_TRANSFORMS = helpers.get_background_transforms(OG_BACKGROUND,TRANSFORMS)
+
 TOKEN_IMAGES = helpers.get_token_images(TOKEN_SIZE)
 CHOSEN_TOKEN_IMAGES = helpers.get_token_images(TOKEN_SIZE*4)
-ONSCREEN_TRANSFORMS =  helpers.get_onscreen_transforms(BACKGROUND_TRANSFORMS, flags=pygame.SRCALPHA)
+# ONSCREEN_TRANSFORMS =  helpers.get_onscreen_transforms(Background.TRANSFORMS, flags=pygame.SRCALPHA)
 #</editor-fold>
 
 
-transform_index = TRANSFORMS.index(1.0)
+class TransformLevel:
+    # todo rename this
+
+    def __init__(self, transform_index):
+        self.transform_index = transform_index
+        self.transform_amount = TRANSFORM_AMOUNTS[transform_index]
+
+        self.background = Background(transform_index)
+        self.onscreen = Onscreen(transform_index)
+        self.tokens = Token(self.transform_amount).images # todo is this the way I want to go forward?
+
+
+class Background:
+    TRANSFORMS = helpers.get_background_transforms(OG_BACKGROUND,TRANSFORM_AMOUNTS)
+
+class Onscreen:
+    TRANSFORMS = helpers.get_onscreen_transforms(Background.TRANSFORMS, flags=pygame.SRCALPHA)
+
+    @staticmethod
+    def blit_to_all(new_pos):
+        for i in range(len(Onscreen.TRANSFORMS)):
+            temp_pos = helpers.turn_relative_into_absolute_position(new_pos, Background.TRANSFORMS[i])
+
+            token = TOKEN_IMAGES[current_token_used]
+
+            Onscreen.TRANSFORMS[i].blit(token,
+                                        (temp_pos.x - token.get_width() / 2,
+                                         temp_pos.y - token.get_height() / 2))
+
+
+class Token:
+    TOKEN_SIZE = 0.5
+    def __init__(self, modifier=1):
+        self.images = helpers.get_token_images(modifier*TOKEN_SIZE)
+
+
+transform_index = TRANSFORM_AMOUNTS.index(1.0)
 placed_tokens = []
 current_token_used = 0
 def change_token(key):
@@ -47,79 +78,44 @@ def change_token(key):
 edit_background = OG_BACKGROUND.copy()
 
 edit_onscreen = pygame.Surface((OG_BACKGROUND.get_width(),OG_BACKGROUND.get_height()),flags=pygame.SRCALPHA)
-blitted_background = BACKGROUND_TRANSFORMS[transform_index]
+blitted_background = Background.TRANSFORMS[transform_index]
 
 camera = Point((0,0))
 
 held = False
 start_coordinates = None
 
-def holding(camera):
+def move_camera_when_holding_mmb(camera):
     '''
     Allows the user to move around the map by moving the mouse
     '''
     global start_coordinates
-    coordinates = pygame.mouse.get_pos()
+    coordinates = Point(pygame.mouse.get_pos())
 
-    # camera += (Point(start_coordinates) - Point(coordinates))*1.5
-    camera.x += (start_coordinates[0] - coordinates[0])*1.5
-    camera.y += (start_coordinates[1] - coordinates[1])*1.5
+    camera.x += (start_coordinates.x - coordinates.x)*1.5
+    camera.y += (start_coordinates.y - coordinates.y)*1.5
 
     start_coordinates = coordinates
-
-def constrain_camera(camera):
-    '''
-    Keeps the camera from moving away from the game map
-    '''
-    camera.x = max(camera.x, -MAX_X_MARGIN())
-    camera.y = max(camera.y, -MAX_Y_MARGIN())
-
-    camera.x = min(camera.x, blitted_background.get_width() - screen.get_width() + MAX_X_MARGIN())
-    camera.y = min(camera.y, blitted_background.get_height() - screen.get_height() + MAX_Y_MARGIN())
-
-
-def get_relative_mouse_position_on_map():
-    '''
-    Returns the mouse position on the map as a percentage of the map
-    :return: Point() coordinates
-    '''
-    coordinates = pygame.mouse.get_pos()
-    return ((camera.x + coordinates[0]) / blitted_background.get_width(),
-            (camera.y + coordinates[1]) / blitted_background.get_height())
-
-def turn_relative_into_absolute_position(previous_position, transform_index):
-
-    return (previous_position[0] * BACKGROUND_TRANSFORMS[transform_index].get_width(),# - camera.x,
-            previous_position[1] * BACKGROUND_TRANSFORMS[transform_index].get_height())# - camera.y)
-
 
 def change_background(camera):
     global blitted_background
 
-    coordinates = pygame.mouse.get_pos()
-    pos_relative_to_map = get_relative_mouse_position_on_map()
+    coordinates = Point(pygame.mouse.get_pos())
+    pos_relative_to_map = helpers.get_relative_mouse_position_on_map(camera, blitted_background)
 
-    blitted_background = BACKGROUND_TRANSFORMS[transform_index]
+    blitted_background = Background.TRANSFORMS[transform_index]
 
     # the mouse was at 0.6 WIDTH when it was at 600 px
     # the mouse is still at 600 px, but we need to set the new ABSOLUTE position to 0.6 WIDTH as well.
 
-    camera.x = pos_relative_to_map[0] * blitted_background.get_width() - min(max(coordinates[0], screen.get_width() * 0.25), screen.get_width() * 0.75)
-    camera.y = pos_relative_to_map[1] * blitted_background.get_height() - min(max(coordinates[1], screen.get_height() * 0.25), screen.get_height() * 0.75)
+    camera.x = pos_relative_to_map.x * blitted_background.get_width() - coordinates.x
+    camera.y = pos_relative_to_map.y * blitted_background.get_height() - coordinates.y
 
 polygon_points = []
 
 
 
-def blit_to_all(new_pos):
-    for i in range(len(TRANSFORMS)):
-        temp_pos = turn_relative_into_absolute_position(new_pos, i)
 
-        token = TOKEN_IMAGES[current_token_used]
-
-        ONSCREEN_TRANSFORMS[i].blit(token,
-                             (temp_pos[0] - token.get_width() / 2,
-                              temp_pos[1] - token.get_height() / 2))
 
 
 def main():
@@ -140,8 +136,8 @@ def main():
 
         if held:
             reblit = True
-            holding(camera)
-            constrain_camera(camera)
+            move_camera_when_holding_mmb(camera)
+            helpers.constrain_camera(camera, screen, blitted_background)
 
         # run through the events
 
@@ -161,7 +157,7 @@ def main():
 
                 if event.dict['button'] == 2:  # MMB pressed
                     held = True
-                    start_coordinates = pygame.mouse.get_pos()
+                    start_coordinates = Point(pygame.mouse.get_pos())
                 else:
                     reblit = True
                     clicked = True
@@ -169,9 +165,9 @@ def main():
                     if event.dict['button'] == 1:
                         polygon_points.append(pygame.mouse.get_pos())
                     if event.dict['button'] == 3:  # right mouse button pressed
-                        new_pos = get_relative_mouse_position_on_map()
+                        new_pos = helpers.get_relative_mouse_position_on_map(camera, blitted_background)
                         placed_tokens.append(new_pos)
-                        blit_to_all(new_pos)
+                        Onscreen.blit_to_all(new_pos)
 
                     if event.dict['button'] == 4:  # mouse wheel up
                         transform_index += 1
@@ -197,7 +193,7 @@ def main():
 
             if old_transform_index != transform_index:
                 change_background(camera)
-                constrain_camera(camera)
+                helpers.constrain_camera(camera, screen, blitted_background)
 
         if reblit or blit_first_time:
 
@@ -206,7 +202,7 @@ def main():
             screen.fill((50, 50, 50))
 
             screen.blit(blitted_background, camera.get(neg=True))
-            screen.blit(ONSCREEN_TRANSFORMS[transform_index], camera.get(neg=True))
+            screen.blit(Onscreen.TRANSFORMS[transform_index], camera.get(neg=True))
 
             display_token = CHOSEN_TOKEN_IMAGES[current_token_used]
 

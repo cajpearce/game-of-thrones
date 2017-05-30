@@ -40,3 +40,42 @@ def get_onscreen_transforms(background_transforms, flags=0):
         retter.append(pygame.Surface((bg.get_width(),bg.get_height()),flags=flags))
 
     return tuple(retter)
+
+
+def MAX_X_MARGIN(screen):
+    return screen.get_width() / 10
+
+def MAX_Y_MARGIN(screen):
+    return (MAX_X_MARGIN(screen) + screen.get_height()/10) / 2
+
+def constrain_camera(camera, screen, current_background):
+    '''
+    Keeps the camera from moving away from the game map
+    '''
+
+    max_x = MAX_X_MARGIN(screen)
+    max_y = MAX_Y_MARGIN(screen)
+
+    camera.x = max(camera.x, -max_x)
+    camera.y = max(camera.y, -max_y)
+
+    camera.x = min(camera.x, current_background.get_width() - screen.get_width() + max_x)
+    camera.y = min(camera.y, current_background.get_height() - screen.get_height() + max_y)
+
+
+def get_relative_mouse_position_on_map(camera,current_background):
+    '''
+    Returns the mouse position on the map as a percentage of the map
+    :return: Point() coordinates
+    '''
+    coordinates = Point(pygame.mouse.get_pos())
+    # TODO turn this into a Point return
+    return (camera + coordinates).div(Point(current_background.get_size()))
+    # return ((camera.x + coordinates[0]) / blitted_background.get_width(),
+    #         (camera.y + coordinates[1]) / blitted_background.get_height())
+
+def turn_relative_into_absolute_position(previous_position, current_background):
+    return previous_position.mul(Point(current_background.get_size()))
+    # return (previous_position[0] * BACKGROUND_TRANSFORMS[transform_index].get_width(),# - camera.x,
+    #         previous_position[1] * BACKGROUND_TRANSFORMS[transform_index].get_height())# - camera.y)
+
