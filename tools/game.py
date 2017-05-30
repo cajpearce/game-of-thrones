@@ -1,59 +1,58 @@
 from pygame import gfxdraw
 import pygame
-
 from Helpers import helpers
+from Helpers.helpers import get_token_images
 from Models.Point import Point
+
+#<editor-fold desc="GAME SET UP">
+clock = pygame.time.Clock()
+pygame.init()
+screen = pygame.display.set_mode((1920,1080), pygame.RESIZABLE)
+helpers.loading_screen(screen)
+
+#</editor-fold>
 
 TRANSFORMS = (0.5, 0.55,
               0.6, 0.68,
               0.75,0.82,
-              0.9,  1.0,
-              1.1,  1.2)
-TRANSFORM_INDEX = 7
+              1.0, 1.2)
+TRANSFORM_INDEX = TRANSFORMS.index(1.0)
 MAX_TRANSFORM_AMOUNT = len(TRANSFORMS) - 1
 MIN_TRANSFORM_AMOUNT = 0
 TOKEN_SIZE = 0.8
 
-clock = pygame.time.Clock()
-pygame.init()
-screen = pygame.display.set_mode((1920,1080), pygame.RESIZABLE)
-
-def max_x_margin():
+def MAX_X_MARGIN():
     return screen.get_width() / 10
 
-def max_y_margin():
-    return screen.get_height()/10
-
-
-
-# do the loading screen!
-
-helpers.loading_screen(screen)
+def MAX_Y_MARGIN():
+    return MAX_X_MARGIN()
+    # return screen.get_height()/10
 
 # load up the images
 # game_board_image = pygame.image.load("../data/GOTv2.0.jpg")
 
-game_board_image = pygame.image.load("../data/a-game-of-thrones-world-map-westeros-essos.jpg")
+
+OG_BACKGROUND = pygame.image.load("../data/a-game-of-thrones-world-map-westeros-essos.jpg")
+# og_background = pygame.Surface.convert(game_board_image)
+
+BACKGROUND_TRANSFORMS = []
+
+for TRANSFORM in TRANSFORMS:
+    BACKGROUND_TRANSFORMS.append(pygame.transform.rotozoom(OG_BACKGROUND, 0, TRANSFORM))
+
+
 territory = pygame.image.load("../data/territory.png")
-# Load the image
-master_move_tokens_image = pygame.image.load("../data/Order Tokens.png")
-master_move_tokens_image = pygame.transform.rotozoom(master_move_tokens_image,0,0.8)
 
-width, height = master_move_tokens_image.get_width() / 5, master_move_tokens_image.get_height()
-
-tokens = []
-for i in range(5):
-    tokens.append(master_move_tokens_image.subsurface(pygame.Rect((i * width, 0, width, height))))
-
+tokens = get_token_images(TOKEN_SIZE)
 placed_tokens = []
 
 
 # and the surfaces
-og_background = pygame.Surface.convert(game_board_image)
 
 
-EDIT_BACKGROUND = og_background.copy()
-BLITTED_BACKGROUND = og_background
+
+EDIT_BACKGROUND = OG_BACKGROUND.copy()
+BLITTED_BACKGROUND = BACKGROUND_TRANSFORMS[TRANSFORM_INDEX]
 
 CameraX = 0
 CameraY = 0
@@ -78,11 +77,11 @@ def constrain_camera():
     Keeps the camera from moving away from the game map
     '''
     global CameraX,CameraY
-    CameraX = max(CameraX,-max_x_margin())
-    CameraY = max(CameraY,-max_y_margin())
+    CameraX = max(CameraX, -MAX_X_MARGIN())
+    CameraY = max(CameraY, -MAX_Y_MARGIN())
 
-    CameraX = min(CameraX, BLITTED_BACKGROUND.get_width() - screen.get_width() + max_x_margin())
-    CameraY = min(CameraY, BLITTED_BACKGROUND.get_height() - screen.get_height() + max_y_margin())
+    CameraX = min(CameraX, BLITTED_BACKGROUND.get_width() - screen.get_width() + MAX_X_MARGIN())
+    CameraY = min(CameraY, BLITTED_BACKGROUND.get_height() - screen.get_height() + MAX_Y_MARGIN())
 
 
 def get_relative_mouse_position_on_map():
@@ -123,7 +122,7 @@ def blit_once(new_pos):
 
     token = tokens[len(placed_tokens) % len(tokens)]
 
-    EDIT_BACKGROUND.blit(pygame.transform.rotozoom(token, 0, TOKEN_SIZE),
+    EDIT_BACKGROUND.blit(token,
                          (new_pos[0] - TOKEN_SIZE * token.get_width() / 2,
                           new_pos[1] - TOKEN_SIZE * token.get_height() / 2))
 
@@ -202,7 +201,7 @@ while GAME_RUNNING:
         change_background()
 
     constrain_camera()
-    
+
     screen.blit(BLITTED_BACKGROUND, (0 - CameraX, 0 - CameraY))
 
     # reconstrain the camera so it doesn't ever leave the map
