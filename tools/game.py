@@ -1,7 +1,6 @@
 from pygame import gfxdraw
 import pygame
 from Helpers import helpers
-from Helpers.helpers import get_token_images
 from Models.Point import Point
 
 #<editor-fold desc="GAME SET UP">
@@ -12,48 +11,48 @@ helpers.loading_screen(screen)
 
 #</editor-fold>
 
-TRANSFORMS = (0.5, 0.55,
-              0.6, 0.68,
-              0.75,0.82,
-              1.0, 1.2)
-TRANSFORM_INDEX = TRANSFORMS.index(1.0)
+
+#<editor-fold desc="CONSTANTS">
+TRANSFORMS = (0.5,0.64,0.8,
+              1.0, 1.25)
+
 MAX_TRANSFORM_AMOUNT = len(TRANSFORMS) - 1
 MIN_TRANSFORM_AMOUNT = 0
-TOKEN_SIZE = 0.8
+TOKEN_SIZE = 0.5
 
 def MAX_X_MARGIN():
     return screen.get_width() / 10
 
 def MAX_Y_MARGIN():
-    return MAX_X_MARGIN()
-    # return screen.get_height()/10
+    return (MAX_X_MARGIN() + screen.get_height()/10) / 2
 
-# load up the images
-# game_board_image = pygame.image.load("../data/GOTv2.0.jpg")
+OG_BACKGROUND = pygame.image.load("../data/low_detail.jpg")
 
-
-OG_BACKGROUND = pygame.image.load("../data/a-game-of-thrones-world-map-westeros-essos.jpg")
-# og_background = pygame.Surface.convert(game_board_image)
-
-BACKGROUND_TRANSFORMS = []
-
-for TRANSFORM in TRANSFORMS:
-    BACKGROUND_TRANSFORMS.append(pygame.transform.rotozoom(OG_BACKGROUND, 0, TRANSFORM))
+# will take a while ...
+BACKGROUND_TRANSFORMS = helpers.get_background_transforms(OG_BACKGROUND,TRANSFORMS)
+TOKEN_IMAGES = helpers.get_token_images(TOKEN_SIZE)
+CHOSEN_TOKEN_IMAGES = helpers.get_token_images(TOKEN_SIZE*4)
+# ONSCREEN_TRANSFORMS =  helpers.get_onscreen_transforms(BACKGROUND_TRANSFORMS)
+#</editor-fold>
 
 
-territory = pygame.image.load("../data/territory.png")
-
-tokens = get_token_images(TOKEN_SIZE)
+transform_index = TRANSFORMS.index(1.0)
 placed_tokens = []
+current_token_used = 0
+def change_token(key):
+    global current_token_used
+    current_token_used = abs(pygame.K_1 - key)
 
 
-# and the surfaces
+edit_background = OG_BACKGROUND.copy()
+
+edit_onscreen = pygame.Surface((OG_BACKGROUND.get_width(),OG_BACKGROUND.get_height()),flags=pygame.SRCALPHA)
+blitted_onscreen = edit_onscreen.copy()
+blitted_background = BACKGROUND_TRANSFORMS[transform_index]
 
 
 
-EDIT_BACKGROUND = OG_BACKGROUND.copy()
-BLITTED_BACKGROUND = BACKGROUND_TRANSFORMS[TRANSFORM_INDEX]
-
+camera = Point((0,0))
 CameraX = 0
 CameraY = 0
 
@@ -64,9 +63,10 @@ def holding():
     '''
     Allows the user to move around the map by moving the mouse
     '''
-    global CameraX,CameraY,start_coordinates
+    global CameraX,CameraY,start_coordinates, camera
     coordinates = pygame.mouse.get_pos()
 
+    # camera += (Point(start_coordinates) - Point(coordinates))*1.5
     CameraX += (start_coordinates[0] - coordinates[0])*1.5
     CameraY += (start_coordinates[1] - coordinates[1])*1.5
 
@@ -80,8 +80,8 @@ def constrain_camera():
     CameraX = max(CameraX, -MAX_X_MARGIN())
     CameraY = max(CameraY, -MAX_Y_MARGIN())
 
-    CameraX = min(CameraX, BLITTED_BACKGROUND.get_width() - screen.get_width() + MAX_X_MARGIN())
-    CameraY = min(CameraY, BLITTED_BACKGROUND.get_height() - screen.get_height() + MAX_Y_MARGIN())
+    CameraX = min(CameraX, blitted_background.get_width() - screen.get_width() + MAX_X_MARGIN())
+    CameraY = min(CameraY, blitted_background.get_height() - screen.get_height() + MAX_Y_MARGIN())
 
 
 def get_relative_mouse_position_on_map():
@@ -90,27 +90,27 @@ def get_relative_mouse_position_on_map():
     :return: Point() coordinates
     '''
     coordinates = pygame.mouse.get_pos()
-    return ((CameraX + coordinates[0]) / BLITTED_BACKGROUND.get_width(),
-            (CameraY + coordinates[1]) / BLITTED_BACKGROUND.get_height())
+    return ((CameraX + coordinates[0]) / blitted_background.get_width(),
+            (CameraY + coordinates[1]) / blitted_background.get_height())
 
 def turn_relative_into_absolute_position(previous_position):
-    return (previous_position[0] * EDIT_BACKGROUND.get_width() - CameraX,
-            previous_position[1] * EDIT_BACKGROUND.get_height() - CameraY)
+    return (previous_position[0] * edit_background.get_width(),# - CameraX,
+            previous_position[1] * edit_background.get_height())# - CameraY)
 
 
 def change_background():
-    global BLITTED_BACKGROUND, CameraX, CameraY
+    global blitted_background, CameraX, CameraY
 
     coordinates = pygame.mouse.get_pos()
     pos_relative_to_map = get_relative_mouse_position_on_map()
 
-    BLITTED_BACKGROUND = pygame.transform.rotozoom(EDIT_BACKGROUND, 0, TRANSFORMS[TRANSFORM_INDEX])
+    blitted_background = BACKGROUND_TRANSFORMS[transform_index]
 
     # the mouse was at 0.6 WIDTH when it was at 600 px
     # the mouse is still at 600 px, but we need to set the new ABSOLUTE position to 0.6 WIDTH as well.
 
-    CameraX = pos_relative_to_map[0] * BLITTED_BACKGROUND.get_width() - min(max(coordinates[0], screen.get_width() * 0.25), screen.get_width() * 0.75)
-    CameraY = pos_relative_to_map[1] * BLITTED_BACKGROUND.get_height() - min(max(coordinates[1], screen.get_height() * 0.25), screen.get_height() * 0.75)
+    CameraX = pos_relative_to_map[0] * blitted_background.get_width() - min(max(coordinates[0], screen.get_width() * 0.25), screen.get_width() * 0.75)
+    CameraY = pos_relative_to_map[1] * blitted_background.get_height() - min(max(coordinates[1], screen.get_height() * 0.25), screen.get_height() * 0.75)
 
 polygon_points = []
 
@@ -120,16 +120,22 @@ GAME_RUNNING = True
 def blit_once(new_pos):
     new_pos = turn_relative_into_absolute_position(new_pos)
 
-    token = tokens[len(placed_tokens) % len(tokens)]
+    token = TOKEN_IMAGES[current_token_used]
 
-    EDIT_BACKGROUND.blit(token,
-                         (new_pos[0] - TOKEN_SIZE * token.get_width() / 2,
-                          new_pos[1] - TOKEN_SIZE * token.get_height() / 2))
+    edit_onscreen.blit(token,
+                         (new_pos[0] - token.get_width() / 2,
+                          new_pos[1] - token.get_height() / 2))
+
+    change_onscreen()
+
+def change_onscreen():
+    global blitted_onscreen
+    blitted_onscreen = pygame.transform.rotozoom(edit_onscreen,0,TRANSFORMS[transform_index])
 
 
 while GAME_RUNNING:
     clicked = False
-    old_transform_index = TRANSFORM_INDEX
+    old_transform_index = transform_index
     # fill up the screen to prevent multiple images being printed to screen
     screen.fill((50,50,50))
 
@@ -138,6 +144,7 @@ while GAME_RUNNING:
 
     if held:
         holding()
+        constrain_camera()
 
 
     # run through the events
@@ -150,6 +157,9 @@ while GAME_RUNNING:
         if event.type == pygame.KEYUP and event.key == pygame.K_SPACE:
             pass
 
+        if event.type == pygame.KEYDOWN:
+            if event.key >= pygame.K_1 and event.key <= pygame.K_5:
+                change_token(event.key)
 
         if event.type == pygame.MOUSEBUTTONDOWN:
 
@@ -167,12 +177,12 @@ while GAME_RUNNING:
                     blit_once(new_pos)
 
                 if event.dict['button'] == 4: # mouse wheel up
-                    TRANSFORM_INDEX += 1
-                    TRANSFORM_INDEX = min(TRANSFORM_INDEX,MAX_TRANSFORM_AMOUNT)
+                    transform_index += 1
+                    transform_index = min(transform_index, MAX_TRANSFORM_AMOUNT)
 
                 if event.dict['button'] == 5: # mouse wheel down
-                    TRANSFORM_INDEX -= 1
-                    TRANSFORM_INDEX = max(TRANSFORM_INDEX,MIN_TRANSFORM_AMOUNT)
+                    transform_index -= 1
+                    transform_index = max(transform_index, MIN_TRANSFORM_AMOUNT)
 
 
 
@@ -180,34 +190,30 @@ while GAME_RUNNING:
             if event.dict['button'] == 2: # left mouse button released
                 held = False
 
+
         # quit the game
         if event.type == pygame.QUIT:
             GAME_RUNNING = False
 
 
-    # draw the map onto the screen
-
-    # draw rectangles
-
-
-
     # if len(polygon_points) > 2:
-    #     # gfxdraw.textured_polygon(BACKGROUND,polygon_points,territory,0,0)
     #     gfxdraw.aapolygon(EDIT_BACKGROUND, polygon_points, (255, 255, 255))
     #     gfxdraw.filled_polygon(EDIT_BACKGROUND,polygon_points,(255,125,125))
 
-    if old_transform_index != TRANSFORM_INDEX or clicked:
-        print(TRANSFORM_INDEX)
+    if old_transform_index != transform_index:
         change_background()
-
-    constrain_camera()
-
-    screen.blit(BLITTED_BACKGROUND, (0 - CameraX, 0 - CameraY))
-
-    # reconstrain the camera so it doesn't ever leave the map
+        change_onscreen()
+        constrain_camera()
 
 
+    screen.blit(blitted_background, (0 - CameraX, 0 - CameraY))
+    screen.blit(blitted_onscreen,(0 - CameraX, 0 - CameraY))
 
+    display_token = CHOSEN_TOKEN_IMAGES[current_token_used]
+
+    screen.blit(display_token,(32,screen.get_height() - display_token.get_height() - 32))
     pygame.display.flip()
     clock.tick(60)
+    # plot the background to the screen
+
 

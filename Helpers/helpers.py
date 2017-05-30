@@ -24,3 +24,19 @@ def get_token_images(token_size):
         tokens.append(master_move_tokens_image.subsurface(pygame.Rect((i * width, 0, width, height))))
 
     return tuple(tokens)
+
+def get_background_transforms(og_background, transforms):
+    bg = []
+
+    for transform in transforms:
+        bg.append(pygame.transform.rotozoom(og_background, 0, transform))
+
+    return tuple(bg)
+
+
+def get_onscreen_transforms(background_transforms):
+    retter = []
+    for bg in background_transforms:
+        retter.append(pygame.Surface((bg.get_width(),bg.get_height())))
+
+    return tuple(retter)
