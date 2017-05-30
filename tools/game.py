@@ -50,35 +50,32 @@ edit_onscreen = pygame.Surface((OG_BACKGROUND.get_width(),OG_BACKGROUND.get_heig
 blitted_background = BACKGROUND_TRANSFORMS[transform_index]
 
 camera = Point((0,0))
-CameraX = 0
-CameraY = 0
 
 held = False
 start_coordinates = None
 
-def holding():
+def holding(camera):
     '''
     Allows the user to move around the map by moving the mouse
     '''
-    global CameraX,CameraY,start_coordinates, camera
+    global start_coordinates
     coordinates = pygame.mouse.get_pos()
 
     # camera += (Point(start_coordinates) - Point(coordinates))*1.5
-    CameraX += (start_coordinates[0] - coordinates[0])*1.5
-    CameraY += (start_coordinates[1] - coordinates[1])*1.5
+    camera.x += (start_coordinates[0] - coordinates[0])*1.5
+    camera.y += (start_coordinates[1] - coordinates[1])*1.5
 
     start_coordinates = coordinates
 
-def constrain_camera():
+def constrain_camera(camera):
     '''
     Keeps the camera from moving away from the game map
     '''
-    global CameraX,CameraY
-    CameraX = max(CameraX, -MAX_X_MARGIN())
-    CameraY = max(CameraY, -MAX_Y_MARGIN())
+    camera.x = max(camera.x, -MAX_X_MARGIN())
+    camera.y = max(camera.y, -MAX_Y_MARGIN())
 
-    CameraX = min(CameraX, blitted_background.get_width() - screen.get_width() + MAX_X_MARGIN())
-    CameraY = min(CameraY, blitted_background.get_height() - screen.get_height() + MAX_Y_MARGIN())
+    camera.x = min(camera.x, blitted_background.get_width() - screen.get_width() + MAX_X_MARGIN())
+    camera.y = min(camera.y, blitted_background.get_height() - screen.get_height() + MAX_Y_MARGIN())
 
 
 def get_relative_mouse_position_on_map():
@@ -87,17 +84,17 @@ def get_relative_mouse_position_on_map():
     :return: Point() coordinates
     '''
     coordinates = pygame.mouse.get_pos()
-    return ((CameraX + coordinates[0]) / blitted_background.get_width(),
-            (CameraY + coordinates[1]) / blitted_background.get_height())
+    return ((camera.x + coordinates[0]) / blitted_background.get_width(),
+            (camera.y + coordinates[1]) / blitted_background.get_height())
 
 def turn_relative_into_absolute_position(previous_position, transform_index):
 
-    return (previous_position[0] * BACKGROUND_TRANSFORMS[transform_index].get_width(),# - CameraX,
-            previous_position[1] * BACKGROUND_TRANSFORMS[transform_index].get_height())# - CameraY)
+    return (previous_position[0] * BACKGROUND_TRANSFORMS[transform_index].get_width(),# - camera.x,
+            previous_position[1] * BACKGROUND_TRANSFORMS[transform_index].get_height())# - camera.y)
 
 
-def change_background():
-    global blitted_background, CameraX, CameraY
+def change_background(camera):
+    global blitted_background
 
     coordinates = pygame.mouse.get_pos()
     pos_relative_to_map = get_relative_mouse_position_on_map()
@@ -107,8 +104,8 @@ def change_background():
     # the mouse was at 0.6 WIDTH when it was at 600 px
     # the mouse is still at 600 px, but we need to set the new ABSOLUTE position to 0.6 WIDTH as well.
 
-    CameraX = pos_relative_to_map[0] * blitted_background.get_width() - min(max(coordinates[0], screen.get_width() * 0.25), screen.get_width() * 0.75)
-    CameraY = pos_relative_to_map[1] * blitted_background.get_height() - min(max(coordinates[1], screen.get_height() * 0.25), screen.get_height() * 0.75)
+    camera.x = pos_relative_to_map[0] * blitted_background.get_width() - min(max(coordinates[0], screen.get_width() * 0.25), screen.get_width() * 0.75)
+    camera.y = pos_relative_to_map[1] * blitted_background.get_height() - min(max(coordinates[1], screen.get_height() * 0.25), screen.get_height() * 0.75)
 
 polygon_points = []
 
@@ -126,7 +123,7 @@ def blit_to_all(new_pos):
 
 
 def main():
-    global screen, held, start_coordinates, transform_index
+    global screen, held, start_coordinates, transform_index, camera
     pygame.event.clear()
     GAME_RUNNING = True
     blit_first_time = True
@@ -143,8 +140,8 @@ def main():
 
         if held:
             reblit = True
-            holding()
-            constrain_camera()
+            holding(camera)
+            constrain_camera(camera)
 
         # run through the events
 
@@ -199,8 +196,8 @@ def main():
             #     gfxdraw.filled_polygon(EDIT_BACKGROUND,polygon_points,(255,125,125))
 
             if old_transform_index != transform_index:
-                change_background()
-                constrain_camera()
+                change_background(camera)
+                constrain_camera(camera)
 
         if reblit or blit_first_time:
 
@@ -208,8 +205,8 @@ def main():
 
             screen.fill((50, 50, 50))
 
-            screen.blit(blitted_background, (0 - CameraX, 0 - CameraY))
-            screen.blit(ONSCREEN_TRANSFORMS[transform_index], (0 - CameraX, 0 - CameraY))
+            screen.blit(blitted_background, camera.get(neg=True))
+            screen.blit(ONSCREEN_TRANSFORMS[transform_index], camera.get(neg=True))
 
             display_token = CHOSEN_TOKEN_IMAGES[current_token_used]
 

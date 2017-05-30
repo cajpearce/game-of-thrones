@@ -17,5 +17,8 @@ class Point:
     def __len__(self):
         return int(sqrt(self.x**2 + self.y**2))
     # get back values in original tuple format
-    def get(self):
+    def get(self, neg = False):
+        if neg:
+            return (- self.x, - self.y)
+
         return (self.x, self.y)
