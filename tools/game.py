@@ -1,6 +1,17 @@
 from pygame import gfxdraw
 import pygame
 
+from Helpers import helpers
+from Models.Point import Point
+
+TRANSFORMS = (0.5, 0.55,
+              0.6, 0.68,
+              0.75,0.82,
+              0.9,  1.0,
+              1.1,  1.2)
+TRANSFORM_INDEX = 7
+MAX_TRANSFORM_AMOUNT = len(TRANSFORMS) - 1
+MIN_TRANSFORM_AMOUNT = 0
 TOKEN_SIZE = 0.8
 
 clock = pygame.time.Clock()
@@ -14,8 +25,14 @@ def max_y_margin():
     return screen.get_height()/10
 
 
+
+# do the loading screen!
+
+helpers.loading_screen(screen)
+
 # load up the images
 # game_board_image = pygame.image.load("../data/GOTv2.0.jpg")
+
 game_board_image = pygame.image.load("../data/a-game-of-thrones-world-map-westeros-essos.jpg")
 territory = pygame.image.load("../data/territory.png")
 # Load the image
@@ -33,7 +50,7 @@ placed_tokens = []
 
 # and the surfaces
 og_background = pygame.Surface.convert(game_board_image)
-TRANSFORM_AMOUNT = 1
+
 
 EDIT_BACKGROUND = og_background.copy()
 BLITTED_BACKGROUND = og_background
@@ -88,7 +105,7 @@ def change_background():
     coordinates = pygame.mouse.get_pos()
     pos_relative_to_map = get_relative_mouse_position_on_map()
 
-    BLITTED_BACKGROUND = pygame.transform.rotozoom(EDIT_BACKGROUND,0,TRANSFORM_AMOUNT)
+    BLITTED_BACKGROUND = pygame.transform.rotozoom(EDIT_BACKGROUND, 0, TRANSFORMS[TRANSFORM_INDEX])
 
     # the mouse was at 0.6 WIDTH when it was at 600 px
     # the mouse is still at 600 px, but we need to set the new ABSOLUTE position to 0.6 WIDTH as well.
@@ -103,9 +120,7 @@ GAME_RUNNING = True
 
 def blit_once(new_pos):
     new_pos = turn_relative_into_absolute_position(new_pos)
-        # pygame.draw.rect(screen, (255, 0, 255), (new_pos[0] - 40*TRANSFORM_AMOUNT, new_pos[1] - 40*TRANSFORM_AMOUNT, 80*TRANSFORM_AMOUNT, 80*TRANSFORM_AMOUNT))
 
-        # Blit second half
     token = tokens[len(placed_tokens) % len(tokens)]
 
     EDIT_BACKGROUND.blit(pygame.transform.rotozoom(token, 0, TOKEN_SIZE),
@@ -115,7 +130,7 @@ def blit_once(new_pos):
 
 while GAME_RUNNING:
     clicked = False
-    old_transform_amount = TRANSFORM_AMOUNT
+    old_transform_index = TRANSFORM_INDEX
     # fill up the screen to prevent multiple images being printed to screen
     screen.fill((50,50,50))
 
@@ -153,10 +168,12 @@ while GAME_RUNNING:
                     blit_once(new_pos)
 
                 if event.dict['button'] == 4: # mouse wheel up
-                    TRANSFORM_AMOUNT /= 0.9
+                    TRANSFORM_INDEX += 1
+                    TRANSFORM_INDEX = min(TRANSFORM_INDEX,MAX_TRANSFORM_AMOUNT)
 
                 if event.dict['button'] == 5: # mouse wheel down
-                    TRANSFORM_AMOUNT *= 0.9
+                    TRANSFORM_INDEX -= 1
+                    TRANSFORM_INDEX = max(TRANSFORM_INDEX,MIN_TRANSFORM_AMOUNT)
 
 
 
@@ -180,13 +197,16 @@ while GAME_RUNNING:
     #     gfxdraw.aapolygon(EDIT_BACKGROUND, polygon_points, (255, 255, 255))
     #     gfxdraw.filled_polygon(EDIT_BACKGROUND,polygon_points,(255,125,125))
 
-    if old_transform_amount != TRANSFORM_AMOUNT or clicked:
+    if old_transform_index != TRANSFORM_INDEX or clicked:
+        print(TRANSFORM_INDEX)
         change_background()
 
+    constrain_camera()
+    
     screen.blit(BLITTED_BACKGROUND, (0 - CameraX, 0 - CameraY))
 
     # reconstrain the camera so it doesn't ever leave the map
-    constrain_camera()
+
 
 
     pygame.display.flip()
