@@ -34,9 +34,9 @@ def get_background_transforms(og_background, transforms):
     return tuple(bg)
 
 
-def get_onscreen_transforms(background_transforms):
+def get_onscreen_transforms(background_transforms, flags=0):
     retter = []
     for bg in background_transforms:
-        retter.append(pygame.Surface((bg.get_width(),bg.get_height())))
+        retter.append(pygame.Surface((bg.get_width(),bg.get_height()),flags=flags))
 
     return tuple(retter)
