@@ -31,16 +31,18 @@ CHOSEN_TOKEN_IMAGES = helpers.get_token_images(TOKEN_SIZE*4)
 #</editor-fold>
 
 
-class TransformLevel:
+class AllAtTransformLevel:
     # todo rename this
 
     def __init__(self, transform_index):
         self.transform_index = transform_index
         self.transform_amount = TRANSFORM_AMOUNTS[transform_index]
 
-        self.background = Background(transform_index)
-        self.onscreen = Onscreen(transform_index)
+        self.background = Background.TRANSFORMS[transform_index]
+        self.onscreen = Onscreen.TRANSFORMS[transform_index]
         self.tokens = Token(self.transform_amount).images # todo is this the way I want to go forward?
+
+
 
 
 class Background:
@@ -61,6 +63,7 @@ class Onscreen:
                                          temp_pos.y - token.get_height() / 2))
 
 
+
 class Token:
     TOKEN_SIZE = 0.5
     def __init__(self, modifier=1):
@@ -74,6 +77,8 @@ def change_token(key):
     global current_token_used
     current_token_used = abs(pygame.K_1 - key)
 
+
+ALL_TRANSFORMED_STUFF = (AllAtTransformLevel(am) for am in TRANSFORM_AMOUNTS)
 
 edit_background = OG_BACKGROUND.copy()
 
